@@ -1,0 +1,172 @@
+# Import packages
+import pygame
+import time
+import random
+import csv
+import matplotlib.pyplot as plt
+import matplotlib.backends.backend_agg as agg
+import numpy as np
+import pylab
+import sys
+
+# Inisialisasi Pygame
+pygame.init()
+WIDTH, HEIGHT = 1000, 500
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Simulasi Speed Bump Otomatis + Grafik Kecepatan")
+
+# Warna
+WHITE = (255, 255, 255)
+GRAY = (200, 200, 200)
+BLUE = (0, 120, 255)
+BLACK = (0, 0, 0)
+ORANGE = (255, 140, 0)
+RED = (255, 50, 50)
+GREEN = (0, 200, 0)
+
+# Font
+font = pygame.font.SysFont("Arial", 20)
+
+# Parameter mobil
+car_x = 0
+car_speed = random.uniform(40, 100)  # pixel/s
+car_width, car_height = 60, 30
+car_y = HEIGHT // 2 + 20
+car_bounce = 0  # efek guncangan
+
+# Sensor
+sensor1_x = 250
+sensor2_x = 450
+speedbump_x = sensor2_x + 100
+distance_between_sensors_cm = 20
+batas_kecepatan_cmps = 25
+
+sensor1_time = None
+sensor2_time = None
+
+# Speed bump
+speedbump_height = 0
+speedbump_raise = False
+speedbump_max_height = 30
+
+# Logging
+kecepatan_terukur = None
+status = ""
+log_data = []
+
+# Grafik setup
+fig, ax = plt.subplots(figsize=(4, 2))
+speeds = []
+frame = agg.FigureCanvasAgg(fig)
+
+# Clock
+clock = pygame.time.Clock()
+running = True
+
+# Fungsi menggambar lingkungan
+def draw_environment():
+    screen.fill(WHITE)
+    pygame.draw.rect(screen, GRAY, (0, HEIGHT // 2, WIDTH, 100))
+    pygame.draw.circle(screen, BLACK, (sensor1_x, HEIGHT // 2 + 50), 10)
+    pygame.draw.circle(screen, BLACK, (sensor2_x, HEIGHT // 2 + 50), 10)
+    screen.blit(font.render("Sensor 1", True, BLACK), (sensor1_x - 30, HEIGHT // 2 + 70))
+    screen.blit(font.render("Sensor 2", True, BLACK), (sensor2_x - 30, HEIGHT // 2 + 70))
+    bump_color = RED if speedbump_raise else ORANGE
+    pygame.draw.rect(screen, bump_color, (speedbump_x, HEIGHT // 2 + 50 - speedbump_height, 60, speedbump_height))
+
+def draw_car(x, bounce):
+    y = car_y - bounce
+    pygame.draw.rect(screen, BLUE, (x, y, car_width, car_height))
+
+def display_info(speed, status):
+    if speed is not None:
+        color = RED if speed > batas_kecepatan_cmps else GREEN
+        screen.blit(font.render(f"Kecepatan: {speed:.2f} cm/s", True, color), (10, 10))
+        screen.blit(font.render(f"Status: {status}", True, color), (10, 35))
+
+def update_graph(speeds):
+    ax.clear()
+    ax.plot(speeds, color="blue")
+    ax.set_title("Grafik Kecepatan")
+    ax.set_ylim(0, 100)
+    frame.draw()
+    raw_data = frame.buffer_rgba()
+    size = frame.get_width_height()
+    graph_surf = pygame.image.frombuffer(raw_data, size, "RGBA")
+    screen.blit(graph_surf, (WIDTH - 400, 20))
+
+# Simulasi utama
+while running:
+    dt = clock.tick(60) / 1000
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_UP]:
+        car_speed += 20 * dt
+    if keys[pygame.K_DOWN]:
+        car_speed -= 20 * dt
+
+    car_x += car_speed * dt
+
+    # Sensor logika
+    if sensor1_time is None and car_x + car_width > sensor1_x:
+        sensor1_time = time.time()
+
+    if sensor1_time and sensor2_time is None and car_x + car_width > sensor2_x:
+        sensor2_time = time.time()
+        waktu_tempuh = sensor2_time - sensor1_time
+        kecepatan_terukur = distance_between_sensors_cm / waktu_tempuh
+
+        if kecepatan_terukur > batas_kecepatan_cmps:
+            speedbump_raise = True
+            status = "Terlalu Cepat"
+        else:
+            speedbump_raise = False
+            status = "Aman"
+
+        log_data.append([kecepatan_terukur, status])
+        speeds.append(kecepatan_terukur)
+
+    # Speed bump animasi
+    if speedbump_raise and speedbump_height < speedbump_max_height:
+        speedbump_height += 1
+    elif not speedbump_raise and speedbump_height > 0:
+        speedbump_height -= 1
+
+    # Guncangan
+    if (speedbump_x < car_x + car_width < speedbump_x + 60) and speedbump_height > 5:
+        if kecepatan_terukur and kecepatan_terukur > batas_kecepatan_cmps:
+            car_bounce = 8
+        else:
+            car_bounce = 2
+    else:
+        if car_bounce > 0:
+            car_bounce -= 1
+
+    # Render semua
+    draw_environment()
+    draw_car(car_x, car_bounce)
+    display_info(kecepatan_terukur, status)
+    update_graph(speeds)
+    pygame.display.flip()
+
+    # Reset mobil
+    if car_x > WIDTH:
+        time.sleep(1)
+        car_x = 0
+        car_speed = random.uniform(40, 100)
+        sensor1_time = None
+        sensor2_time = None
+        kecepatan_terukur = None
+        status = ""
+        speedbump_raise = False
+
+# Simpan ke CSV
+with open("log_kecepatan.csv", "w", newline="") as f:
+    writer = csv.writer(f)
+    writer.writerow(["Kecepatan (cm/s)", "Status"])
+    writer.writerows(log_data)
+
+pygame.quit()

@@ -1,0 +1,32 @@
+import time
+
+# Function to display lyrics with delay
+def show_lyrics():
+    lyrics = [
+        "Did we ever know?", 
+        "Did we ever know?", 
+        "Did we ever know?",  
+        "Is it all inside of my head?", 
+        "Maybe you still think I don't care", 
+        "But all I need is you", 
+        "Yeah, you know it's true, yeah, you know it's true", 
+        "Forget about where we are and let go", 
+        "We're so close", 
+        "If you don't know where to start", 
+        "Just hold on and don't run, no", 
+        "We're looking back, we messed around", 
+        "But that was then and this is now", 
+        "All we need is enough love to hold us", 
+        "Where we are"
+    ]
+    
+    # Rhythm delays (in seconds)
+    delays = [2.5, 2.5, 3.8, 2.0, 3.0, 3.0, 4.0, 5.5, 3.2, 5.0, 4.2, 4.0, 3.5, 3.2, 2.0, 1.5]
+    
+    # Loop through each lyric and delay
+    for i in range(len(lyrics)):
+        print(lyrics[i])  # Print the current lyric
+        time.sleep(delays[i])  # Wait for the specified delay time before printing the next line
+
+# Run the function to display lyrics
+show_lyrics()
