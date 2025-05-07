@@ -170,3 +170,5 @@ with open("log_kecepatan.csv", "w", newline="") as f:
     writer.writerows(log_data)
 
 pygame.quit()
+
+
