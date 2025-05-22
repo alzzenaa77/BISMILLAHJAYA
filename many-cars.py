@@ -3,6 +3,9 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.backends.backend_agg as agg
+import csv
+import os
+from datetime import datetime
 
 pygame.init()
 
@@ -63,6 +66,7 @@ class Car:
         self.sensor2_triggered = False
         self.waktu_tempuh = 0
         self.deselerasi = False
+        self.already_logged = False 
 
     def update(self, dt):
         self.x += self.speed * dt
@@ -103,6 +107,32 @@ class Car:
             self.bounce -= 5 * dt
             if self.bounce < 0:
                 self.bounce = 0
+    
+    def check_speedbump_log(self):
+        wheel_front_x = self.x + 45  # Posisi roda depan
+        if not self.already_logged and wheel_front_x > speedbump_x + speedbump_width:
+            # Mobil telah melewati speed bump
+            kena = speedbump_height > 2  # Apakah speed bump sedang aktif
+            kecepatan_mps = self.kecepatan_terukur / konversi_m_per_pixel if self.kecepatan_terukur else 0
+
+            if kena and self.kecepatan_terukur <= batas_kecepatan_pixels_ps:
+                catatan = "Mobil lambat kena speedbump"
+            elif not kena and self.kecepatan_terukur > batas_kecepatan_pixels_ps:
+                catatan = "Mobil cepat lolos"
+            else:
+                catatan = "Normal"
+
+            if self.kecepatan_terukur:                
+                with open("log_kecepatan_banyak.csv", "a", newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerow([
+                        datetime.now().isoformat(timespec='seconds'),
+                        round(kecepatan_mps, 2),
+                        self.status,
+                        "YA" if kena else "TIDAK",
+                        catatan
+                    ])
+            self.already_logged = True 
 
 cars = []
 start_x = 200
@@ -111,7 +141,7 @@ for i in range(5):
     if i % 2 == 0:
         speed = random.uniform(batas_kecepatan_pixels_ps - 20, batas_kecepatan_pixels_ps)  # lambat
     else:
-        speed = random.uniform(batas_kecepatan_pixels_ps + 20, batas_kecepatan_pixels_ps + 40)  # cepat
+        speed = random.uniform(batas_kecepatan_pixels_ps, batas_kecepatan_pixels_ps + 20)  # cepat
     cars.append(Car(start_x - i * 80, speed, colors[i % len(colors)]))  # mobil berdekatan
 
 def draw_environment():
@@ -170,6 +200,13 @@ def update_graph(data):
 clock = pygame.time.Clock()
 running = True
 
+# Logging ke file CSV
+csv_file_path = "log_kecepatan_banyak.csv"
+if not os.path.exists(csv_file_path):
+    with open(csv_file_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["waktu", "kecepatan", "status", "kena_speedbump", "catatan"])
+
 while running:
     dt = clock.tick(10) / 1000
     for event in pygame.event.get():
@@ -182,11 +219,14 @@ while running:
     for car in cars:
         car.update(dt)
         speed, status = car.check_sensors(dt)
+        car.check_speedbump_log()
         if speed:
             log_data.append([speed, status])
             speeds.append(speed)
         if car.kecepatan_terukur and car.kecepatan_terukur > batas_kecepatan_pixels_ps:
             speedbump_raise = True
+        elif car.kecepatan_terukur and car.kecepatan_terukur < batas_kecepatan_pixels_ps:
+            speedbump_raise = False
         car.check_bounce(dt)
         car.draw()
         display_info(speed, status)
@@ -214,5 +254,6 @@ while running:
             car.status = "Menunggu..."
             car.waktu_tempuh = 0
             car.deselerasi = False
+            car.already_logged = False
 
 pygame.quit()
