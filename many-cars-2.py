@@ -73,7 +73,7 @@ font = pygame.font.SysFont("Arial", 16)
 def generate_speed(jumlah_kendaraan):
     # Ambil rata-rata dari tabel
     mean_speed = kecepatan_tabel.get(jumlah_kendaraan, 8) * konversi_m_per_pixel
-    std_dev = mean_speed * 0.05
+    std_dev = mean_speed * 0.1
     return np.random.normal(mean_speed, std_dev)
 
 class Car:
@@ -147,7 +147,7 @@ class Car:
                 catatan = "Normal"
 
             if self.kecepatan_terukur:                
-                with open("log_kecepatan_banyak_15_005.csv", "a", newline="") as f:
+                with open("log_kecepatan_banyak_15_01.csv", "a", newline="") as f:
                     writer = csv.writer(f)
                     writer.writerow([
                         datetime.now().isoformat(timespec='seconds'),
@@ -222,7 +222,7 @@ clock = pygame.time.Clock()
 running = True
 
 # Logging ke file CSV
-csv_file_path = "log_kecepatan_banyak_15_005.csv"
+csv_file_path = "log_kecepatan_banyak_15_01.csv"
 if not os.path.exists(csv_file_path):
     with open(csv_file_path, mode='w', newline='') as file:
         writer = csv.writer(file)
